@@ -41,5 +41,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh release create "$GITHUB_REF_NAME" dsh-forge-*.tgz SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" dsh-forge-*.tgz dsh-forge.tgz SHA256SUMS
           --verify-tag --generate-notes
