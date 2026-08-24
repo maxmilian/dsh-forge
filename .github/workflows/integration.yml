@@ -45,7 +45,6 @@ jobs:
             --env GITEA__database__DB_TYPE=sqlite3 \
             --env GITEA__security__INSTALL_LOCK=true \
             --env GITEA__actions__ENABLED=true \
-            --env GITEA_RUNNER_REGISTRATION_TOKEN=dsh-forge-integration-runner-token-2026 \
             "$IMAGE"
           for attempt in {1..60}; do
             if curl --fail --silent "http://127.0.0.1:${PORT}/api/v1/version" >/dev/null; then
@@ -73,9 +72,13 @@ jobs:
           chmod +x "$RUNNER_BINARY"
           mkdir runner-data
           cd runner-data
+          RUNNER_TOKEN="$(curl --fail --silent --user 'dsh-integration:Dsh-integration-2026!' \
+            "http://127.0.0.1:${PORT}/api/v1/admin/actions/runners/registration-token" | jq --raw-output .token)"
+          test -n "$RUNNER_TOKEN"
+          echo "::add-mask::${RUNNER_TOKEN}"
           "../${RUNNER_BINARY}" register --no-interactive \
             --instance "http://127.0.0.1:${PORT}" \
-            --token dsh-forge-integration-runner-token-2026 \
+            --token "$RUNNER_TOKEN" \
             --name dsh-forge-integration \
             --labels ubuntu-latest:host
           if [ "$RUNNER_CONFIG" = true ]; then
