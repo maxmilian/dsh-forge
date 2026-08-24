@@ -24,6 +24,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "prepare": "node ./node_modules/typescript/bin/tsc -p tsconfig.json",
+    "smoke:dsh": "bash scripts/smoke-dsh.sh",
     "test": "node ./node_modules/vitest/vitest.mjs run",
     "test:integration": "node ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
     "test:coverage": "node ./node_modules/vitest/vitest.mjs run --coverage",

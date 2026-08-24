@@ -21,3 +21,6 @@ jobs:
       - run: bun run test:coverage
       - run: bun run build
       - run: bun pm pack --dry-run
+      - name: Install DSH CLI
+        run: bun add --global @deepseek-ai/dsh@0.1.1-rc.2 pnpm@10.33.2
+      - run: bun run smoke:dsh
