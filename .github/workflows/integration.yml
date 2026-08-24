@@ -24,6 +24,8 @@ jobs:
             runner_binary: gitea-runner
             runner_config: false
             runner_token_method: POST
+            runner_labels: ubuntu-latest:host
+            root_host: 127.0.0.1
           - forge: Forgejo 16
             image: codeberg.org/forgejo/forgejo:16
             binary: forgejo
@@ -32,6 +34,8 @@ jobs:
             runner_binary: forgejo-runner
             runner_config: true
             runner_token_method: GET
+            runner_labels: ubuntu-latest:docker://node:22-bookworm
+            root_host: 172.17.0.1
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -42,12 +46,13 @@ jobs:
         env:
           IMAGE: ${{ matrix.image }}
           PORT: ${{ matrix.port }}
+          ROOT_HOST: ${{ matrix.root_host }}
         run: |
           docker run --detach --name forge --publish "${PORT}:3000" \
             --env GITEA__database__DB_TYPE=sqlite3 \
             --env GITEA__security__INSTALL_LOCK=true \
             --env GITEA__actions__ENABLED=true \
-            --env "GITEA__server__ROOT_URL=http://127.0.0.1:${PORT}/" \
+            --env "GITEA__server__ROOT_URL=http://${ROOT_HOST}:${PORT}/" \
             "$IMAGE"
           for attempt in {1..60}; do
             if curl --fail --silent "http://127.0.0.1:${PORT}/api/v1/version" >/dev/null; then
@@ -71,6 +76,7 @@ jobs:
           RUNNER_BINARY: ${{ matrix.runner_binary }}
           RUNNER_CONFIG: ${{ matrix.runner_config }}
           RUNNER_TOKEN_METHOD: ${{ matrix.runner_token_method }}
+          RUNNER_LABELS: ${{ matrix.runner_labels }}
         run: |
           curl --fail --location --output "$RUNNER_BINARY" "$RUNNER_URL"
           chmod +x "$RUNNER_BINARY"
@@ -85,7 +91,7 @@ jobs:
             --instance "http://127.0.0.1:${PORT}" \
             --token "$RUNNER_TOKEN" \
             --name dsh-forge-integration \
-            --labels ubuntu-latest:host
+            --labels "$RUNNER_LABELS"
           if [ "$RUNNER_CONFIG" = true ]; then
             "../${RUNNER_BINARY}" generate-config >config.yml
             "../${RUNNER_BINARY}" daemon -c config.yml >runner.log 2>&1 &
