@@ -55,10 +55,64 @@ export class ForgeClient {
     return this.#get(`repos/${segment(owner)}/${segment(repo)}/pulls/${index}`, {}, signal)
   }
 
+  /** Fetch one pull request as a unified diff. */
+  getPullRequestDiff(
+    owner: string,
+    repo: string,
+    index: number,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    return this.#getText(`repos/${segment(owner)}/${segment(repo)}/pulls/${index}.diff`, {}, signal)
+  }
+
+  /** List files changed by one pull request. */
+  listPullRequestFiles(
+    owner: string,
+    repo: string,
+    index: number,
+    page: number,
+    limit: number,
+    signal?: AbortSignal,
+  ): Promise<JsonValue> {
+    return this.#get(
+      `repos/${segment(owner)}/${segment(repo)}/pulls/${index}/files`,
+      { page, limit },
+      signal,
+    )
+  }
+
   /** List Actions runs for a repository. */
   listActionRuns(query: ActionRunsQuery, signal?: AbortSignal): Promise<JsonValue> {
     const path = `repos/${segment(query.owner)}/${segment(query.repo)}/actions/runs`
     return this.#get(path, omit(query, ['owner', 'repo']), signal)
+  }
+
+  /** List jobs belonging to one Actions workflow run. */
+  listActionJobs(
+    owner: string,
+    repo: string,
+    runId: number,
+    signal?: AbortSignal,
+  ): Promise<JsonValue> {
+    return this.#get(
+      `repos/${segment(owner)}/${segment(repo)}/actions/runs/${runId}/jobs`,
+      {},
+      signal,
+    )
+  }
+
+  /** Fetch the plaintext log for one Actions job. */
+  getActionJobLogs(
+    owner: string,
+    repo: string,
+    jobId: number,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    return this.#getText(
+      `repos/${segment(owner)}/${segment(repo)}/actions/jobs/${jobId}/logs`,
+      {},
+      signal,
+    )
   }
 
   async #get(
@@ -66,12 +120,29 @@ export class ForgeClient {
     query: Readonly<Record<string, QueryValue>>,
     signal?: AbortSignal,
   ): Promise<JsonValue> {
+    const response = await this.#request(path, query, signal)
+    return parseJsonResponse(response, `GET ${path}`, this.#maxResponseBytes, this.#token)
+  }
+
+  async #getText(
+    path: string,
+    query: Readonly<Record<string, QueryValue>>,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    const response = await this.#request(path, query, signal)
+    return parseTextResponse(response, `GET ${path}`, this.#maxResponseBytes, this.#token)
+  }
+
+  #request(
+    path: string,
+    query: Readonly<Record<string, QueryValue>>,
+    signal?: AbortSignal,
+  ): Promise<Response> {
     const url = buildUrl(this.#baseUrl, path, query)
-    const response = await this.#fetch(url, {
+    return this.#fetch(url, {
       headers: requestHeaders(this.#token),
       signal: requestSignal(signal, this.#requestTimeoutMs),
     })
-    return parseResponse(response, `GET ${path}`, this.#maxResponseBytes, this.#token)
   }
 }
 
@@ -168,7 +239,7 @@ function segment(value: string): string {
 }
 
 function requestHeaders(token: string | undefined): Headers {
-  const headers = new Headers({ Accept: 'application/json', 'User-Agent': 'dsh-forge/0.1.0' })
+  const headers = new Headers({ Accept: '*/*', 'User-Agent': 'dsh-forge/0.2.0' })
   if (token !== undefined) headers.set('Authorization', `token ${token}`)
   return headers
 }
@@ -178,7 +249,7 @@ function requestSignal(signal: AbortSignal | undefined, timeoutMs: number): Abor
   return signal === undefined ? timeout : AbortSignal.any([signal, timeout])
 }
 
-async function parseResponse(
+async function parseJsonResponse(
   response: Response,
   operation: string,
   maxResponseBytes: number,
@@ -188,6 +259,17 @@ async function parseResponse(
   if (!response.ok) throw new ForgeApiError(operation, response.status, errorDetail(text, token))
   if (text === '') return null
   return parseJson(text, operation)
+}
+
+async function parseTextResponse(
+  response: Response,
+  operation: string,
+  maxResponseBytes: number,
+  token: string | undefined,
+): Promise<string> {
+  const text = await readBoundedBody(response, maxResponseBytes)
+  if (!response.ok) throw new ForgeApiError(operation, response.status, errorDetail(text, token))
+  return text
 }
 
 async function readBoundedBody(response: Response, maximum: number): Promise<string> {

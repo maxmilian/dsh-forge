@@ -1,6 +1,8 @@
 # dsh-forge
 
 [![CI](https://github.com/maxmilian/dsh-forge/actions/workflows/ci.yml/badge.svg)](https://github.com/maxmilian/dsh-forge/actions/workflows/ci.yml)
+[![Integration](https://github.com/maxmilian/dsh-forge/actions/workflows/integration.yml/badge.svg)](https://github.com/maxmilian/dsh-forge/actions/workflows/integration.yml)
+[![Release](https://img.shields.io/github/v/release/maxmilian/dsh-forge)](https://github.com/maxmilian/dsh-forge/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Read-only [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) tools for
@@ -17,9 +19,10 @@ and Actions context directly to DSH.
 - List repositories owned by the authenticated user.
 - Search issues and pull requests across visible repositories.
 - Read an issue or pull request by repository and index.
-- List repository pull requests and Actions runs.
+- Read pull request diffs and changed-file metadata.
+- List repository Actions runs and jobs, then read plaintext job logs.
 - Forward cancellation and enforce request time and response-size limits.
-- Keep every v0.1 tool read-only and safe for parallel execution.
+- Keep every v0.2 tool read-only and safe for parallel execution.
 
 ## Install
 
@@ -31,7 +34,14 @@ dsh --profile web --dump-config
 dsh --profile web
 ```
 
-From GitHub after the repository is published:
+From the prebuilt release tarball (recommended):
+
+```bash
+dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/download/v0.2.0/dsh-forge-0.2.0.tgz
+```
+
+The tarball includes compiled JavaScript and declarations, so installation does not run a local
+TypeScript build. To track the repository instead:
 
 ```bash
 dsh plugin --profile web add github:maxmilian/dsh-forge
@@ -70,7 +80,7 @@ The profile patch can override runtime limits or provide credentials directly:
     maxResponseBytes: 1000000
 ```
 
-Use the narrowest token scopes your instance supports. Version 0.1 never creates, updates, merges,
+Use the narrowest token scopes your instance supports. Version 0.2 never creates, updates, merges,
 reruns, or deletes remote resources.
 
 ## Tools
@@ -83,7 +93,11 @@ reruns, or deletes remote resources.
 | `forge_get_issue` | Read one issue |
 | `forge_list_pull_requests` | List repository pull requests |
 | `forge_get_pull_request` | Read one pull request |
+| `forge_get_pull_request_diff` | Read one pull request as a unified diff |
+| `forge_list_pull_request_files` | List files changed by one pull request |
 | `forge_list_action_runs` | List repository Actions runs |
+| `forge_list_action_jobs` | List jobs belonging to one Actions run |
+| `forge_get_action_job_logs` | Read the plaintext log for one Actions job |
 
 List endpoints clamp `limit` to 50 to keep model context bounded. API errors include the operation
 and HTTP status but never retain request headers or credentials.
@@ -101,24 +115,26 @@ bun run build
 bun pm pack --dry-run
 ```
 
-Tests mock `fetch`; they do not require a live Gitea or Forgejo instance.
+Unit tests mock `fetch`. The `Integration` GitHub Actions workflow additionally starts disposable,
+official Gitea and Forgejo containers and their Actions runners. It creates real repositories,
+issues, branches, pull requests, workflow runs, and job logs before exercising the plugin client.
 
 ## Compatibility verification
 
 | Target | Verification |
 | --- | --- |
 | DeepSeek Harness | Local bundle install, composed-config dump, and boot smoke test |
-| Gitea | Shared endpoints checked against the current official OpenAPI schema |
-| Forgejo | Shared endpoints checked against the Forgejo 16 OpenAPI schema served by Codeberg |
+| Gitea | Live CI against the official Gitea 1.27 container and Gitea Runner 3.1.0 |
+| Forgejo | Live CI against the official Forgejo 16 container and Forgejo Runner 13.0.0 |
 
-Authenticated live-instance tests are not automated yet. API payloads are returned as canonical JSON
-so fields added by either project remain available without requiring a plugin release.
+API payloads are returned as canonical JSON so fields added by either project remain available
+without requiring a plugin release. Diff and log responses remain plaintext to avoid JSON escaping.
 
 ## Current scope
 
 The plugin deliberately uses the common REST endpoints instead of instance-specific extensions.
 Actions availability depends on the server version and whether Actions is enabled. A future release
-can add approval-gated writes, pull-request diffs, reviews, job logs, and webhook-driven workflows.
+can add approval-gated writes, pull-request reviews, artifacts, and webhook-driven workflows.
 
 ## License
 

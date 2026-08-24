@@ -40,7 +40,11 @@ describe('createForgeTools', () => {
       'forge_get_issue',
       'forge_list_pull_requests',
       'forge_get_pull_request',
+      'forge_get_pull_request_diff',
+      'forge_list_pull_request_files',
       'forge_list_action_runs',
+      'forge_list_action_jobs',
+      'forge_get_action_job_logs',
     ])
   })
 
@@ -86,9 +90,29 @@ describe('createForgeTools', () => {
       expected: '/repos/ankey/demo/pulls/9',
     },
     {
+      name: 'forge_get_pull_request_diff',
+      args: { owner: 'ankey', repo: 'demo', index: 9 },
+      expected: '/repos/ankey/demo/pulls/9.diff',
+    },
+    {
+      name: 'forge_list_pull_request_files',
+      args: { owner: 'ankey', repo: 'demo', index: 9, page: 2, limit: 5 },
+      expected: '/repos/ankey/demo/pulls/9/files?page=2&limit=5',
+    },
+    {
       name: 'forge_list_action_runs',
       args: { owner: 'ankey', repo: 'demo', status: 'failure', page: 3, limit: 5 },
       expected: '/repos/ankey/demo/actions/runs?status=failure&page=3&limit=5',
+    },
+    {
+      name: 'forge_list_action_jobs',
+      args: { owner: 'ankey', repo: 'demo', run_id: 41 },
+      expected: '/repos/ankey/demo/actions/runs/41/jobs',
+    },
+    {
+      name: 'forge_get_action_job_logs',
+      args: { owner: 'ankey', repo: 'demo', job_id: 52 },
+      expected: '/repos/ankey/demo/actions/jobs/52/logs',
     },
   ])('dispatches $name to the expected shared API endpoint', async ({ name, args, expected }) => {
     const { tools, fetchMock } = setup()
@@ -114,6 +138,23 @@ describe('createForgeTools', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain('status=')
   })
 
+  it('renders plaintext tool output without JSON quoting', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(new Response('line one\nline two'))
+    const client = new ForgeClient({
+      baseUrl: 'https://forge.example.test',
+      requestTimeoutMs: 1_000,
+      maxResponseBytes: 10_000,
+      fetch: fetchMock,
+    })
+    const tool = toolNamed(
+      createForgeTools(() => client),
+      'forge_get_pull_request_diff',
+    )
+    const args = { owner: 'ankey', repo: 'demo', index: 1 }
+    const value = await tool.execute(args, EXECUTION)
+    expect(tool.output.render(args, value)).toEqual([{ type: 'text', text: 'line one\nline two' }])
+  })
+
   it('provides concurrency and pending-call presentation metadata', () => {
     const { tools } = setup()
     const args = {
@@ -126,6 +167,8 @@ describe('createForgeTools', () => {
       type: 'issues',
       query: 'bug',
       status: 'failure',
+      run_id: 1,
+      job_id: 1,
     }
     for (const tool of tools) {
       expect(tool.isConcurrencySafe?.(args)).toBe(true)

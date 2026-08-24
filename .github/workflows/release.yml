@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test:coverage
+      - run: bun run build
+      - name: Verify tag and build tarball
+        run: |
+          PACKAGE_VERSION="$(node --print "require('./package.json').version")"
+          test "$GITHUB_REF_NAME" = "v${PACKAGE_VERSION}"
+          bun pm pack
+          tar --list --gzip --file "dsh-forge-${PACKAGE_VERSION}.tgz"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dsh-forge-*.tgz --verify-tag --generate-notes

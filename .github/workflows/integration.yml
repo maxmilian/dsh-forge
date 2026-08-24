@@ -1,0 +1,95 @@
+name: Integration
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-instance:
+    name: ${{ matrix.forge }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - forge: Gitea 1.27
+            image: docker.gitea.com/gitea:1.27
+            binary: gitea
+            port: 3100
+            runner_url: https://dl.gitea.com/gitea-runner/3.1.0/gitea-runner-3.1.0-linux-amd64
+            runner_binary: gitea-runner
+            runner_config: false
+          - forge: Forgejo 16
+            image: codeberg.org/forgejo/forgejo:16
+            binary: forgejo
+            port: 3200
+            runner_url: https://code.forgejo.org/forgejo/runner/releases/download/v13.0.0/forgejo-runner-13.0.0-linux-amd64
+            runner_binary: forgejo-runner
+            runner_config: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Start forge instance
+        env:
+          IMAGE: ${{ matrix.image }}
+          PORT: ${{ matrix.port }}
+        run: |
+          docker run --detach --name forge --publish "${PORT}:3000" \
+            --env GITEA__database__DB_TYPE=sqlite3 \
+            --env GITEA__security__INSTALL_LOCK=true \
+            --env GITEA__actions__ENABLED=true \
+            --env GITEA_RUNNER_REGISTRATION_TOKEN=dsh-forge-integration-runner-token-2026 \
+            "$IMAGE"
+          for attempt in {1..60}; do
+            if curl --fail --silent "http://127.0.0.1:${PORT}/api/v1/version" >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs forge
+          exit 1
+      - name: Create integration administrator
+        env:
+          FORGE_BINARY: ${{ matrix.binary }}
+        run: >-
+          docker exec --user git forge "$FORGE_BINARY" admin user create
+          --username dsh-integration --password 'Dsh-integration-2026!'
+          --email integration@example.test --admin --must-change-password=false
+      - name: Start Actions runner
+        env:
+          PORT: ${{ matrix.port }}
+          RUNNER_URL: ${{ matrix.runner_url }}
+          RUNNER_BINARY: ${{ matrix.runner_binary }}
+          RUNNER_CONFIG: ${{ matrix.runner_config }}
+        run: |
+          curl --fail --location --output "$RUNNER_BINARY" "$RUNNER_URL"
+          chmod +x "$RUNNER_BINARY"
+          mkdir runner-data
+          cd runner-data
+          "../${RUNNER_BINARY}" register --no-interactive \
+            --instance "http://127.0.0.1:${PORT}" \
+            --token dsh-forge-integration-runner-token-2026 \
+            --name dsh-forge-integration \
+            --labels ubuntu-latest:host
+          if [ "$RUNNER_CONFIG" = true ]; then
+            "../${RUNNER_BINARY}" generate-config >config.yml
+            "../${RUNNER_BINARY}" daemon -c config.yml >runner.log 2>&1 &
+          else
+            "../${RUNNER_BINARY}" daemon >runner.log 2>&1 &
+          fi
+      - name: Run live integration test
+        env:
+          FORGE_INTEGRATION_URL: http://127.0.0.1:${{ matrix.port }}
+        run: bun run test:integration
+      - name: Show diagnostics on failure
+        if: failure()
+        run: |
+          docker logs forge
+          test ! -f runner-data/runner.log || tail -200 runner-data/runner.log

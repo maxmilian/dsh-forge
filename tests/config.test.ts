@@ -36,6 +36,6 @@ describe('createClient', () => {
     const register = vi.fn()
     const context = { tools: { register } } as unknown as Context
     apply(context, BASE_CONFIG)
-    expect(register).toHaveBeenCalledTimes(7)
+    expect(register).toHaveBeenCalledTimes(11)
   })
 })

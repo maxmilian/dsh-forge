@@ -60,6 +60,42 @@ describe('ForgeClient', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/repos/my%20team/demo%2Frepo/issues/7')
   })
 
+  it('fetches pull request diffs as bounded text', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(new Response('diff --git a/a b/a'))
+    await expect(clientWith(fetchMock).getPullRequestDiff('ankey', 'demo', 3)).resolves.toBe(
+      'diff --git a/a b/a',
+    )
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/repos/ankey/demo/pulls/3.diff')
+  })
+
+  it('lists pull request files and Actions jobs through shared endpoints', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse({ ok: true }))
+    const client = clientWith(fetchMock)
+    await client.listPullRequestFiles('ankey', 'demo', 3, 2, 10)
+    await client.listActionJobs('ankey', 'demo', 91)
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      '/repos/ankey/demo/pulls/3/files?page=2&limit=10',
+    )
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/repos/ankey/demo/actions/runs/91/jobs')
+  })
+
+  it('fetches Actions job logs as plaintext', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(new Response('integration marker'))
+    await expect(clientWith(fetchMock).getActionJobLogs('ankey', 'demo', 17)).resolves.toBe(
+      'integration marker',
+    )
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/actions/jobs/17/logs')
+  })
+
+  it('sanitizes errors returned by plaintext endpoints', async () => {
+    const fetchMock = vi
+      .fn<FetchLike>()
+      .mockResolvedValue(new Response('token top-secret denied', { status: 403 }))
+    const promise = clientWith(fetchMock).getActionJobLogs('ankey', 'demo', 17)
+    await expect(promise).rejects.toThrow('token [REDACTED] denied')
+    await expect(promise).rejects.not.toThrow('top-secret')
+  })
+
   it('forwards the caller cancellation signal', async () => {
     const controller = new AbortController()
     const fetchMock = vi.fn<FetchLike>().mockImplementation((_input, init) => {

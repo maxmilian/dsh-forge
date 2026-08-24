@@ -12,6 +12,11 @@ const JSON_OUTPUT = {
   ],
 } as const
 
+const TEXT_OUTPUT = {
+  schema: { type: 'string' as const },
+  render: (_args: unknown, value: string) => [{ type: 'text' as const, text: value }],
+} as const
+
 /** Build every read-only tool exposed by dsh-forge. */
 export function createForgeTools(client: ForgeClientProvider) {
   return [
@@ -21,7 +26,11 @@ export function createForgeTools(client: ForgeClientProvider) {
     getIssueTool(client),
     listPullRequestsTool(client),
     getPullRequestTool(client),
+    getPullRequestDiffTool(client),
+    listPullRequestFilesTool(client),
     listActionRunsTool(client),
+    listActionJobsTool(client),
+    getActionJobLogsTool(client),
   ]
 }
 
@@ -151,6 +160,50 @@ function getPullRequestTool(client: ForgeClientProvider) {
   })
 }
 
+function getPullRequestDiffTool(client: ForgeClientProvider) {
+  return defineTool({
+    name: 'forge_get_pull_request_diff',
+    description: 'Get the unified diff for one Gitea or Forgejo pull request.',
+    parameters: repositoryItemParameters('Pull request index'),
+    output: TEXT_OUTPUT,
+    execute: (args, exec) =>
+      client().getPullRequestDiff(args.owner, args.repo, args.index, exec.signal),
+    isConcurrencySafe: () => true,
+    presentCall: (args) => ({
+      card: 'generic',
+      title: `Read diff for ${args.owner}/${args.repo}!${args.index}`,
+      kind: 'read',
+      rawInput: args,
+    }),
+  })
+}
+
+function listPullRequestFilesTool(client: ForgeClientProvider) {
+  return defineTool({
+    name: 'forge_list_pull_request_files',
+    description: 'List files changed by one Gitea or Forgejo pull request.',
+    parameters: { ...repositoryItemParameters('Pull request index'), ...paginationParameters() },
+    output: JSON_OUTPUT,
+    execute(args, exec) {
+      const { page, limit } = normalizePagination(args.page, args.limit)
+      return client().listPullRequestFiles(
+        args.owner,
+        args.repo,
+        args.index,
+        page,
+        limit,
+        exec.signal,
+      )
+    },
+    isConcurrencySafe: () => true,
+    presentCall: () => ({
+      card: 'generic',
+      title: 'List changed pull request files',
+      kind: 'read',
+    }),
+  })
+}
+
 function listActionRunsTool(client: ForgeClientProvider) {
   return defineTool({
     name: 'forge_list_action_runs',
@@ -175,6 +228,38 @@ function listActionRunsTool(client: ForgeClientProvider) {
     },
     isConcurrencySafe: () => true,
     presentCall: () => ({ card: 'generic', title: 'List Forge Actions runs', kind: 'search' }),
+  })
+}
+
+function listActionJobsTool(client: ForgeClientProvider) {
+  return defineTool({
+    name: 'forge_list_action_jobs',
+    description: 'List jobs belonging to one Gitea or Forgejo Actions workflow run.',
+    parameters: {
+      ...repositoryParameters(),
+      run_id: { type: 'integer', required: true, description: 'Workflow run ID' },
+    },
+    output: JSON_OUTPUT,
+    execute: (args, exec) =>
+      client().listActionJobs(args.owner, args.repo, args.run_id, exec.signal),
+    isConcurrencySafe: () => true,
+    presentCall: () => ({ card: 'generic', title: 'List Forge Actions jobs', kind: 'read' }),
+  })
+}
+
+function getActionJobLogsTool(client: ForgeClientProvider) {
+  return defineTool({
+    name: 'forge_get_action_job_logs',
+    description: 'Get the plaintext log for one Gitea or Forgejo Actions job.',
+    parameters: {
+      ...repositoryParameters(),
+      job_id: { type: 'integer', required: true, description: 'Actions job ID' },
+    },
+    output: TEXT_OUTPUT,
+    execute: (args, exec) =>
+      client().getActionJobLogs(args.owner, args.repo, args.job_id, exec.signal),
+    isConcurrencySafe: () => true,
+    presentCall: () => ({ card: 'generic', title: 'Read Forge Actions job logs', kind: 'read' }),
   })
 }
 

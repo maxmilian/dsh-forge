@@ -1,6 +1,6 @@
 {
   "name": "dsh-forge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DeepSeek Harness tools for self-hosted Gitea and Forgejo instances.",
   "type": "module",
   "main": "lib/index.js",
@@ -24,6 +24,7 @@
     "format": "biome format --write .",
     "prepare": "node ./node_modules/typescript/bin/tsc -p tsconfig.json",
     "test": "node ./node_modules/vitest/vitest.mjs run",
+    "test:integration": "node ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
     "test:coverage": "node ./node_modules/vitest/vitest.mjs run --coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
