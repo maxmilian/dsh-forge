@@ -103,7 +103,7 @@ async function waitForId(
 ): Promise<number> {
   for (let attempt = 0; attempt < 60; attempt += 1) {
     const response = await load()
-    const items = arrayProperty(response, collection)
+    const items = Array.isArray(response) ? response : arrayProperty(response, collection)
     const item = items[0]
     if (isRecord(item) && (!requireCompletion || actionJobSucceeded(item))) {
       return numberProperty(item, 'id')
