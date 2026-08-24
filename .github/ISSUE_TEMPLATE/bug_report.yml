@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a reproducible problem with dsh-forge
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting a bug. Remove all tokens and private repository data before submitting.
+  - type: input
+    id: plugin-version
+    attributes:
+      label: dsh-forge version
+      placeholder: 0.3.0
+    validations:
+      required: true
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH CLI version
+      description: Run `dsh --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: forge
+    attributes:
+      label: Forge
+      options:
+        - Gitea
+        - Forgejo
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: forge-version
+    attributes:
+      label: Forge version
+      description: Use the version reported by `/api/v1/version`.
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the observed and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Configure ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste redacted logs or API errors. Do not include credentials.
+      render: shell

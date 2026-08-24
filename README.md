@@ -148,3 +148,6 @@ can add approval-gated writes, pull-request reviews, artifacts, and webhook-driv
 ## License
 
 [MIT](LICENSE)
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
+[SECURITY.md](SECURITY.md) for private vulnerability reporting.
