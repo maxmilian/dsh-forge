@@ -7,8 +7,9 @@
 [Forgejo](https://forgejo.org/) 站点。插件使用两个平台共同支持的 REST API，提供仓库、
 议题、拉取请求与 Actions 信息。
 
-> DeepSeek Harness 目前仍是 developer preview。本插件面向
-> `@deepseek-ai/dsh-tools ^0.1.0-rc.6`；Harness API 变更时可能需要同步更新。
+> DeepSeek Harness 目前仍是 developer preview。本插件已使用
+> `@deepseek-ai/dsh-tools 0.1.1-rc.2` 测试，并保留自 `rc.6` 起的 `0.1.0` 预发布版本兼容性；
+> Harness API 变更时可能需要同步更新。
 
 ## 功能
 

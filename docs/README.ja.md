@@ -9,8 +9,8 @@ DSH から直接参照できる、読み取り専用の
 Actions の情報を提供します。
 
 > DeepSeek Harness は developer preview です。このプラグインは
-> `@deepseek-ai/dsh-tools ^0.1.0-rc.6` を対象としているため、Harness API の変更に合わせて
-> 更新が必要になる場合があります。
+> `@deepseek-ai/dsh-tools 0.1.1-rc.2` でテスト済みで、`rc.6` 以降の `0.1.0`
+> プレリリースとの互換性も維持しています。Harness API の変更に合わせて更新が必要になる場合があります。
 
 ## 機能
 

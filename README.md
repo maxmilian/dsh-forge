@@ -12,8 +12,9 @@ self-hosted [Gitea](https://about.gitea.com/) and [Forgejo](https://forgejo.org/
 The plugin uses the REST API shared by both projects and adds repository, issue, pull request,
 and Actions context directly to DSH.
 
-> DeepSeek Harness is in developer preview. This plugin currently targets
-> `@deepseek-ai/dsh-tools ^0.1.0-rc.6` and may need updates when Harness APIs change.
+> DeepSeek Harness is in developer preview. This plugin is tested with
+> `@deepseek-ai/dsh-tools 0.1.1-rc.2`, retains compatibility with the `0.1.0` prereleases from
+> `rc.6`, and may need updates when Harness APIs change.
 
 ## Features
 
