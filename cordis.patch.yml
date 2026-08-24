@@ -4,5 +4,6 @@
       config:
         baseUrl: ''
         token: ''
+        locale: en
         requestTimeoutMs: 30000
         maxResponseBytes: 1000000

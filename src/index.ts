@@ -3,6 +3,7 @@ import Schema from '@deepseek-ai/schemastery'
 
 import { ForgeClient } from './client.js'
 import { ForgeConfigError } from './errors.js'
+import { LOCALES, type Locale } from './i18n.js'
 import { createForgeTools } from './tools.js'
 
 export const name = 'dsh-forge'
@@ -12,6 +13,7 @@ export const inject = ['tools']
 export interface Config {
   readonly baseUrl: string
   readonly token: string
+  readonly locale: Locale
   readonly requestTimeoutMs: number
   readonly maxResponseBytes: number
 }
@@ -24,6 +26,7 @@ export const Config: Schema<Config> = Schema.object({
     .role('secret')
     .description('Access token; falls back to DSH_FORGE_TOKEN')
     .default(''),
+  locale: Schema.union(LOCALES).description('Tool metadata language').default('en'),
   requestTimeoutMs: Schema.number().min(1).step(1).default(30_000),
   maxResponseBytes: Schema.number().min(1).step(1).default(1_000_000),
 })
@@ -31,7 +34,7 @@ export const Config: Schema<Config> = Schema.object({
 /** Register all read-only Forge tools in the Harness tool registry. */
 export function apply(ctx: Context, config: Config): void {
   const client = () => createClient(config, process.env)
-  for (const tool of createForgeTools(client)) ctx.tools.register(tool)
+  for (const tool of createForgeTools(client, config.locale)) ctx.tools.register(tool)
 }
 
 /** Resolve explicit plugin configuration before environment variables. */
@@ -54,3 +57,4 @@ export function createClient(
 
 export { ForgeClient } from './client.js'
 export { ForgeApiError, ForgeConfigError } from './errors.js'
+export { LOCALES, type Locale } from './i18n.js'

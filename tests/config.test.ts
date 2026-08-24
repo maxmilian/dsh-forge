@@ -7,6 +7,7 @@ import { apply, type Config, createClient } from '../src/index.js'
 const BASE_CONFIG: Config = {
   baseUrl: '',
   token: '',
+  locale: 'en',
   requestTimeoutMs: 1_000,
   maxResponseBytes: 10_000,
 }
@@ -37,5 +38,12 @@ describe('createClient', () => {
     const context = { tools: { register } } as unknown as Context
     apply(context, BASE_CONFIG)
     expect(register).toHaveBeenCalledTimes(11)
+  })
+
+  it('registers tools in the configured locale', () => {
+    const register = vi.fn()
+    const context = { tools: { register } } as unknown as Context
+    apply(context, { ...BASE_CONFIG, locale: 'ja' })
+    expect(register.mock.calls[0]?.[0].description).toContain('設定済み')
   })
 })

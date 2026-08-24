@@ -1,5 +1,7 @@
 # dsh-forge
 
+English | [繁體中文](docs/README.zh-TW.md) | [简体中文](docs/README.zh-CN.md) | [日本語](docs/README.ja.md)
+
 [![CI](https://github.com/maxmilian/dsh-forge/actions/workflows/ci.yml/badge.svg)](https://github.com/maxmilian/dsh-forge/actions/workflows/ci.yml)
 [![Integration](https://github.com/maxmilian/dsh-forge/actions/workflows/integration.yml/badge.svg)](https://github.com/maxmilian/dsh-forge/actions/workflows/integration.yml)
 [![Release](https://img.shields.io/github/v/release/maxmilian/dsh-forge)](https://github.com/maxmilian/dsh-forge/releases/latest)
@@ -21,8 +23,9 @@ and Actions context directly to DSH.
 - Read an issue or pull request by repository and index.
 - Read pull request diffs and changed-file metadata.
 - List repository Actions runs and jobs, then read plaintext job logs.
+- Localize runtime tool metadata in English, Traditional Chinese, Simplified Chinese, or Japanese.
 - Forward cancellation and enforce request time and response-size limits.
-- Keep every v0.2 tool read-only and safe for parallel execution.
+- Keep every v0.3 tool read-only and safe for parallel execution.
 
 ## Install
 
@@ -37,7 +40,7 @@ dsh --profile web
 From the prebuilt release tarball (recommended):
 
 ```bash
-dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/download/v0.2.0/dsh-forge-0.2.0.tgz
+dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/download/v0.3.0/dsh-forge-0.3.0.tgz
 ```
 
 The tarball includes compiled JavaScript and declarations, so installation does not run a local
@@ -76,12 +79,17 @@ The profile patch can override runtime limits or provide credentials directly:
   config:
     baseUrl: 'https://code.example.com'
     token: '' # Prefer DSH_FORGE_TOKEN. This field is marked secret in the config schema.
+    locale: en # en, zh-TW, zh-CN, or ja
     requestTimeoutMs: 30000
     maxResponseBytes: 1000000
 ```
 
-Use the narrowest token scopes your instance supports. Version 0.2 never creates, updates, merges,
+Use the narrowest token scopes your instance supports. Version 0.3 never creates, updates, merges,
 reruns, or deletes remote resources.
+
+`locale` controls model-facing tool descriptions, parameter help, and pending-call titles. English
+is the default; Traditional Chinese, Simplified Chinese, and Japanese are included without external
+translation services.
 
 ## Tools
 

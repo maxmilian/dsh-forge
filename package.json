@@ -1,6 +1,6 @@
 {
   "name": "dsh-forge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "DeepSeek Harness tools for self-hosted Gitea and Forgejo instances.",
   "type": "module",
   "main": "lib/index.js",
@@ -16,6 +16,7 @@
     "lib",
     "cordis.patch.yml",
     "README.md",
+    "docs",
     "LICENSE"
   ],
   "scripts": {

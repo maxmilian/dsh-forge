@@ -1,6 +1,7 @@
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 import { type ForgeClient, normalizePagination } from './client.js'
+import { type ForgeMessages, forgeMessages, type Locale } from './i18n.js'
 import type { JsonValue } from './types.js'
 
 type ForgeClientProvider = () => ForgeClient
@@ -18,67 +19,68 @@ const TEXT_OUTPUT = {
 } as const
 
 /** Build every read-only tool exposed by dsh-forge. */
-export function createForgeTools(client: ForgeClientProvider) {
+export function createForgeTools(client: ForgeClientProvider, locale: Locale = 'en') {
+  const messages = forgeMessages(locale)
   return [
-    instanceInfoTool(client),
-    listRepositoriesTool(client),
-    searchIssuesTool(client),
-    getIssueTool(client),
-    listPullRequestsTool(client),
-    getPullRequestTool(client),
-    getPullRequestDiffTool(client),
-    listPullRequestFilesTool(client),
-    listActionRunsTool(client),
-    listActionJobsTool(client),
-    getActionJobLogsTool(client),
+    instanceInfoTool(client, messages),
+    listRepositoriesTool(client, messages),
+    searchIssuesTool(client, messages),
+    getIssueTool(client, messages),
+    listPullRequestsTool(client, messages),
+    getPullRequestTool(client, messages),
+    getPullRequestDiffTool(client, messages),
+    listPullRequestFilesTool(client, messages),
+    listActionRunsTool(client, messages),
+    listActionJobsTool(client, messages),
+    getActionJobLogsTool(client, messages),
   ]
 }
 
-function instanceInfoTool(client: ForgeClientProvider) {
+function instanceInfoTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_instance_info',
-    description: 'Get version information from the configured Gitea or Forgejo instance.',
+    description: messages.instanceDescription,
     parameters: {},
     output: JSON_OUTPUT,
     execute: (_args, exec) => client().getVersion(exec.signal),
     isConcurrencySafe: () => true,
-    presentCall: () => ({ card: 'generic', title: 'Inspect Forge instance', kind: 'read' }),
+    presentCall: () => ({ card: 'generic', title: messages.instanceTitle, kind: 'read' }),
   })
 }
 
-function listRepositoriesTool(client: ForgeClientProvider) {
+function listRepositoriesTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_list_repositories',
-    description: 'List repositories owned by the authenticated Gitea or Forgejo user.',
-    parameters: paginationParameters(),
+    description: messages.repositoriesDescription,
+    parameters: paginationParameters(messages),
     output: JSON_OUTPUT,
     execute(args, exec) {
       const { page, limit } = normalizePagination(args.page, args.limit)
       return client().listRepositories(page, limit, exec.signal)
     },
     isConcurrencySafe: () => true,
-    presentCall: () => ({ card: 'generic', title: 'List Forge repositories', kind: 'search' }),
+    presentCall: () => ({ card: 'generic', title: messages.repositoriesTitle, kind: 'search' }),
   })
 }
 
-function searchIssuesTool(client: ForgeClientProvider) {
+function searchIssuesTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_search_issues',
-    description: 'Search issues or pull requests across visible Gitea or Forgejo repositories.',
+    description: messages.searchDescription,
     parameters: {
-      query: { type: 'string', description: 'Free-text search query' },
-      owner: { type: 'string', description: 'Optional repository owner filter' },
+      query: { type: 'string', description: messages.query },
+      owner: { type: 'string', description: messages.ownerFilter },
       state: {
         type: 'string',
         enum: ['open', 'closed', 'all'],
-        description: 'Issue state; defaults to open',
+        description: messages.issueState,
       },
       type: {
         type: 'string',
         enum: ['issues', 'pulls'],
-        description: 'Result kind; defaults to issues',
+        description: messages.resultKind,
       },
-      ...paginationParameters(),
+      ...paginationParameters(messages),
     },
     output: JSON_OUTPUT,
     execute(args, exec) {
@@ -95,39 +97,39 @@ function searchIssuesTool(client: ForgeClientProvider) {
       )
     },
     isConcurrencySafe: () => true,
-    presentCall: () => ({ card: 'generic', title: 'Search Forge issues', kind: 'search' }),
+    presentCall: () => ({ card: 'generic', title: messages.searchTitle, kind: 'search' }),
   })
 }
 
-function getIssueTool(client: ForgeClientProvider) {
+function getIssueTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_get_issue',
-    description: 'Get one Gitea or Forgejo issue by repository and issue index.',
-    parameters: repositoryItemParameters('Issue index'),
+    description: messages.issueDescription,
+    parameters: repositoryItemParameters(messages, messages.issueIndex),
     output: JSON_OUTPUT,
     execute: (args, exec) => client().getIssue(args.owner, args.repo, args.index, exec.signal),
     isConcurrencySafe: () => true,
     presentCall: (args) => ({
       card: 'generic',
-      title: `Read ${args.owner}/${args.repo}#${args.index}`,
+      title: messages.readIssue(args.owner, args.repo, args.index),
       kind: 'read',
       rawInput: args,
     }),
   })
 }
 
-function listPullRequestsTool(client: ForgeClientProvider) {
+function listPullRequestsTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_list_pull_requests',
-    description: 'List pull requests for a Gitea or Forgejo repository.',
+    description: messages.pullRequestsDescription,
     parameters: {
-      ...repositoryParameters(),
+      ...repositoryParameters(messages),
       state: {
         type: 'string',
         enum: ['open', 'closed', 'all'],
-        description: 'Pull request state; defaults to open',
+        description: messages.pullRequestState,
       },
-      ...paginationParameters(),
+      ...paginationParameters(messages),
     },
     output: JSON_OUTPUT,
     execute(args, exec) {
@@ -138,51 +140,54 @@ function listPullRequestsTool(client: ForgeClientProvider) {
       )
     },
     isConcurrencySafe: () => true,
-    presentCall: () => ({ card: 'generic', title: 'List Forge pull requests', kind: 'search' }),
+    presentCall: () => ({ card: 'generic', title: messages.pullRequestsTitle, kind: 'search' }),
   })
 }
 
-function getPullRequestTool(client: ForgeClientProvider) {
+function getPullRequestTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_get_pull_request',
-    description: 'Get one Gitea or Forgejo pull request by repository and index.',
-    parameters: repositoryItemParameters('Pull request index'),
+    description: messages.pullRequestDescription,
+    parameters: repositoryItemParameters(messages, messages.pullRequestIndex),
     output: JSON_OUTPUT,
     execute: (args, exec) =>
       client().getPullRequest(args.owner, args.repo, args.index, exec.signal),
     isConcurrencySafe: () => true,
     presentCall: (args) => ({
       card: 'generic',
-      title: `Read ${args.owner}/${args.repo}!${args.index}`,
+      title: messages.readPullRequest(args.owner, args.repo, args.index),
       kind: 'read',
       rawInput: args,
     }),
   })
 }
 
-function getPullRequestDiffTool(client: ForgeClientProvider) {
+function getPullRequestDiffTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_get_pull_request_diff',
-    description: 'Get the unified diff for one Gitea or Forgejo pull request.',
-    parameters: repositoryItemParameters('Pull request index'),
+    description: messages.diffDescription,
+    parameters: repositoryItemParameters(messages, messages.pullRequestIndex),
     output: TEXT_OUTPUT,
     execute: (args, exec) =>
       client().getPullRequestDiff(args.owner, args.repo, args.index, exec.signal),
     isConcurrencySafe: () => true,
     presentCall: (args) => ({
       card: 'generic',
-      title: `Read diff for ${args.owner}/${args.repo}!${args.index}`,
+      title: messages.readDiff(args.owner, args.repo, args.index),
       kind: 'read',
       rawInput: args,
     }),
   })
 }
 
-function listPullRequestFilesTool(client: ForgeClientProvider) {
+function listPullRequestFilesTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_list_pull_request_files',
-    description: 'List files changed by one Gitea or Forgejo pull request.',
-    parameters: { ...repositoryItemParameters('Pull request index'), ...paginationParameters() },
+    description: messages.filesDescription,
+    parameters: {
+      ...repositoryItemParameters(messages, messages.pullRequestIndex),
+      ...paginationParameters(messages),
+    },
     output: JSON_OUTPUT,
     execute(args, exec) {
       const { page, limit } = normalizePagination(args.page, args.limit)
@@ -198,20 +203,20 @@ function listPullRequestFilesTool(client: ForgeClientProvider) {
     isConcurrencySafe: () => true,
     presentCall: () => ({
       card: 'generic',
-      title: 'List changed pull request files',
+      title: messages.filesTitle,
       kind: 'read',
     }),
   })
 }
 
-function listActionRunsTool(client: ForgeClientProvider) {
+function listActionRunsTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_list_action_runs',
-    description: 'List recent Actions workflow runs for a Gitea or Forgejo repository.',
+    description: messages.runsDescription,
     parameters: {
-      ...repositoryParameters(),
-      status: { type: 'string', description: 'Optional run status filter' },
-      ...paginationParameters(),
+      ...repositoryParameters(messages),
+      status: { type: 'string', description: messages.runStatus },
+      ...paginationParameters(messages),
     },
     output: JSON_OUTPUT,
     execute(args, exec) {
@@ -227,59 +232,59 @@ function listActionRunsTool(client: ForgeClientProvider) {
       )
     },
     isConcurrencySafe: () => true,
-    presentCall: () => ({ card: 'generic', title: 'List Forge Actions runs', kind: 'search' }),
+    presentCall: () => ({ card: 'generic', title: messages.runsTitle, kind: 'search' }),
   })
 }
 
-function listActionJobsTool(client: ForgeClientProvider) {
+function listActionJobsTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_list_action_jobs',
-    description: 'List jobs belonging to one Gitea or Forgejo Actions workflow run.',
+    description: messages.jobsDescription,
     parameters: {
-      ...repositoryParameters(),
-      run_id: { type: 'integer', required: true, description: 'Workflow run ID' },
+      ...repositoryParameters(messages),
+      run_id: { type: 'integer', required: true, description: messages.runId },
     },
     output: JSON_OUTPUT,
     execute: (args, exec) =>
       client().listActionJobs(args.owner, args.repo, args.run_id, exec.signal),
     isConcurrencySafe: () => true,
-    presentCall: () => ({ card: 'generic', title: 'List Forge Actions jobs', kind: 'read' }),
+    presentCall: () => ({ card: 'generic', title: messages.jobsTitle, kind: 'read' }),
   })
 }
 
-function getActionJobLogsTool(client: ForgeClientProvider) {
+function getActionJobLogsTool(client: ForgeClientProvider, messages: ForgeMessages) {
   return defineTool({
     name: 'forge_get_action_job_logs',
-    description: 'Get the plaintext log for one Gitea or Forgejo Actions job.',
+    description: messages.logsDescription,
     parameters: {
-      ...repositoryParameters(),
-      job_id: { type: 'integer', required: true, description: 'Actions job ID' },
+      ...repositoryParameters(messages),
+      job_id: { type: 'integer', required: true, description: messages.jobId },
     },
     output: TEXT_OUTPUT,
     execute: (args, exec) =>
       client().getActionJobLogs(args.owner, args.repo, args.job_id, exec.signal),
     isConcurrencySafe: () => true,
-    presentCall: () => ({ card: 'generic', title: 'Read Forge Actions job logs', kind: 'read' }),
+    presentCall: () => ({ card: 'generic', title: messages.logsTitle, kind: 'read' }),
   })
 }
 
-function paginationParameters() {
+function paginationParameters(messages: ForgeMessages) {
   return {
-    page: { type: 'integer' as const, description: 'Page number; defaults to 1' },
-    limit: { type: 'integer' as const, description: 'Results per page; clamped to 1-50' },
+    page: { type: 'integer' as const, description: messages.page },
+    limit: { type: 'integer' as const, description: messages.limit },
   } as const
 }
 
-function repositoryParameters() {
+function repositoryParameters(messages: ForgeMessages) {
   return {
-    owner: { type: 'string' as const, required: true, description: 'Repository owner' },
-    repo: { type: 'string' as const, required: true, description: 'Repository name' },
+    owner: { type: 'string' as const, required: true, description: messages.owner },
+    repo: { type: 'string' as const, required: true, description: messages.repo },
   } as const
 }
 
-function repositoryItemParameters(description: string) {
+function repositoryItemParameters(messages: ForgeMessages, description: string) {
   return {
-    ...repositoryParameters(),
+    ...repositoryParameters(messages),
     index: { type: 'integer' as const, required: true as const, description },
   } as const
 }

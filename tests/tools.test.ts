@@ -9,7 +9,7 @@ const EXECUTION = {
   toolCallId: 'test-call',
 } as const
 
-function setup() {
+function setup(locale: Parameters<typeof createForgeTools>[1] = 'en') {
   const fetchMock = vi.fn<FetchLike>().mockResolvedValue(
     new Response(JSON.stringify({ ok: true }), {
       headers: { 'Content-Type': 'application/json' },
@@ -21,7 +21,7 @@ function setup() {
     maxResponseBytes: 10_000,
     fetch: fetchMock,
   })
-  return { tools: createForgeTools(() => client), fetchMock }
+  return { tools: createForgeTools(() => client, locale), fetchMock }
 }
 
 function toolNamed(tools: ReturnType<typeof createForgeTools>, name: string) {
@@ -46,6 +46,25 @@ describe('createForgeTools', () => {
       'forge_list_action_jobs',
       'forge_get_action_job_logs',
     ])
+  })
+
+  it.each([
+    ['zh-TW', '取得已設定', '檢視 Forge 站台'],
+    ['zh-CN', '获取已配置', '查看 Forge 站点'],
+    ['ja', '設定済み', 'Forge インスタンスを確認'],
+  ] as const)('localizes tool metadata for %s', (locale, description, title) => {
+    const tool = toolNamed(setup(locale).tools, 'forge_instance_info')
+    expect(tool.description).toContain(description)
+    expect(tool.presentCall?.({})).toMatchObject({ title })
+  })
+
+  it('localizes parameter help and dynamic call titles', () => {
+    const tools = setup('zh-TW').tools
+    const issue = toolNamed(tools, 'forge_get_issue')
+    expect(issue.parameters.properties.owner?.description).toBe('儲存庫擁有者')
+    expect(issue.presentCall?.({ owner: 'ankey', repo: 'demo', index: 3 })).toMatchObject({
+      title: '讀取 ankey/demo#3',
+    })
   })
 
   it('normalizes pagination before listing pull requests', async () => {
