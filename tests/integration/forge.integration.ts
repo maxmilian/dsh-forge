@@ -80,12 +80,7 @@ describe('live Forge integration', () => {
       expect.arrayContaining([expect.objectContaining({ filename: 'change.txt' })]),
     )
 
-    const runId = await waitForId(() => client.listActionRuns(usernameAndRepository()))
-    const jobId = await waitForId(
-      () => client.listActionJobs(username, repository, runId),
-      'jobs',
-      true,
-    )
+    const jobId = await waitForSuccessfulJob(client)
     await expect(client.getActionJobLogs(username, repository, jobId)).resolves.toContain(
       'dsh-forge-action-log-marker',
     )
@@ -96,21 +91,25 @@ function usernameAndRepository() {
   return { owner: username, repo: repository, page: 1, limit: 20 }
 }
 
-async function waitForId(
-  load: () => Promise<unknown>,
-  collection = 'workflow_runs',
-  requireCompletion = false,
-): Promise<number> {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    const response = await load()
-    const items = Array.isArray(response) ? response : arrayProperty(response, collection)
-    const item = items[0]
-    if (isRecord(item) && (!requireCompletion || actionJobSucceeded(item))) {
-      return numberProperty(item, 'id')
+async function waitForSuccessfulJob(client: ForgeClient): Promise<number> {
+  let lastRuns: unknown
+  let lastJobs: unknown
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    lastRuns = await client.listActionRuns(usernameAndRepository())
+    const runs = collectionItems(lastRuns, 'workflow_runs')
+    for (const run of runs.slice(0, 5)) {
+      if (!isRecord(run) || typeof run.id !== 'number') continue
+      lastJobs = await client.listActionJobs(username, repository, run.id)
+      const job = collectionItems(lastJobs, 'jobs').find(
+        (item): item is Record<string, unknown> => isRecord(item) && actionJobSucceeded(item),
+      )
+      if (job !== undefined) return numberProperty(job, 'id')
     }
     await new Promise((resolve) => setTimeout(resolve, 1_000))
   }
-  throw new Error(`Timed out waiting for ${collection}`)
+  throw new Error(
+    `Timed out waiting for a successful Actions job. Last runs: ${diagnostic(lastRuns)}; last jobs: ${diagnostic(lastJobs)}`,
+  )
 }
 
 function actionJobSucceeded(job: Record<string, unknown>): boolean {
@@ -151,6 +150,15 @@ function numberProperty(value: unknown, key: string): number {
 function arrayProperty(value: unknown, key: string): unknown[] {
   if (!isRecord(value) || !Array.isArray(value[key])) return []
   return value[key]
+}
+
+function collectionItems(value: unknown, key: string): unknown[] {
+  return Array.isArray(value) ? value : arrayProperty(value, key)
+}
+
+function diagnostic(value: unknown): string {
+  if (value === undefined) return 'not available'
+  return JSON.stringify(value).slice(0, 2_000)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
