@@ -27,7 +27,7 @@ Actions の情報を提供します。
 コンパイル済みの release tarball を推奨します。
 
 ```bash
-dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/download/v0.3.0/dsh-forge-0.3.0.tgz
+dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/latest/download/dsh-forge.tgz
 ```
 
 GitHub repository を直接追跡する場合：

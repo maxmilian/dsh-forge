@@ -26,7 +26,7 @@
 建議使用含編譯結果的 release tarball：
 
 ```bash
-dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/download/v0.3.0/dsh-forge-0.3.0.tgz
+dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/latest/download/dsh-forge.tgz
 ```
 
 或直接追蹤 GitHub repository：

@@ -41,7 +41,7 @@ dsh --profile web
 From the prebuilt release tarball (recommended):
 
 ```bash
-dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/download/v0.3.0/dsh-forge-0.3.0.tgz
+dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/latest/download/dsh-forge.tgz
 ```
 
 The tarball includes compiled JavaScript and declarations, so installation does not run a local

@@ -9,7 +9,11 @@ permissions:
   contents: write
 
 jobs:
+  integration:
+    uses: ./.github/workflows/integration.yml
+
   release:
+    needs: integration
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -21,13 +25,21 @@ jobs:
       - run: bun run typecheck
       - run: bun run test:coverage
       - run: bun run build
+      - name: Install DSH CLI
+        run: bun add --global @deepseek-ai/dsh@0.1.1-rc.2 pnpm@10.33.2
+      - run: bun run smoke:dsh
       - name: Verify tag and build tarball
         run: |
           PACKAGE_VERSION="$(node --print "require('./package.json').version")"
           test "$GITHUB_REF_NAME" = "v${PACKAGE_VERSION}"
           bun pm pack
-          tar --list --gzip --file "dsh-forge-${PACKAGE_VERSION}.tgz"
+          PACKAGE_TARBALL="dsh-forge-${PACKAGE_VERSION}.tgz"
+          tar --list --gzip --file "$PACKAGE_TARBALL"
+          cp "$PACKAGE_TARBALL" dsh-forge.tgz
+          sha256sum "$PACKAGE_TARBALL" dsh-forge.tgz >SHA256SUMS
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dsh-forge-*.tgz --verify-tag --generate-notes
+        run: >-
+          gh release create "$GITHUB_REF_NAME" dsh-forge-*.tgz SHA256SUMS
+          --verify-tag --generate-notes
