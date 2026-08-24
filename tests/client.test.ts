@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 
 import { buildUrl, ForgeClient, normalizePagination } from '../src/client.js'
@@ -52,6 +53,16 @@ describe('ForgeClient', () => {
     await clientWith(fetchMock, { token: undefined }).getVersion()
     const [, init] = fetchMock.mock.calls[0] ?? []
     expect(new Headers(init?.headers).has('Authorization')).toBe(false)
+  })
+
+  it('sends a user agent matching the package version', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse({ version: '1.0.0' }))
+    await clientWith(fetchMock).getVersion()
+    const [, init] = fetchMock.mock.calls[0] ?? []
+    const manifest = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    ) as { version: string }
+    expect(new Headers(init?.headers).get('User-Agent')).toBe(`dsh-forge/${manifest.version}`)
   })
 
   it('encodes owner and repository path segments', async () => {
