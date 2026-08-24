@@ -1,0 +1,142 @@
+import { describe, expect, it, vi } from 'vitest'
+
+import { buildUrl, ForgeClient, normalizePagination } from '../src/client.js'
+import { ForgeApiError, ForgeConfigError } from '../src/errors.js'
+import type { FetchLike } from '../src/types.js'
+
+function jsonResponse(value: unknown, status = 200, headers?: HeadersInit): Response {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...headers },
+  })
+}
+
+function clientWith(
+  fetch: FetchLike,
+  overrides: Partial<ConstructorParameters<typeof ForgeClient>[0]> = {},
+) {
+  return new ForgeClient({
+    baseUrl: 'https://forge.example.test/git',
+    token: 'top-secret',
+    requestTimeoutMs: 1_000,
+    maxResponseBytes: 10_000,
+    fetch,
+    ...overrides,
+  })
+}
+
+describe('ForgeClient', () => {
+  it('preserves a base path and encodes query parameters', () => {
+    const url = buildUrl(new URL('https://forge.test/git/'), 'repos/issues/search', {
+      q: 'bug & fix',
+      page: 2,
+      empty: undefined,
+    })
+    expect(url.toString()).toBe(
+      'https://forge.test/git/api/v1/repos/issues/search?q=bug+%26+fix&page=2',
+    )
+  })
+
+  it('authenticates and lists repositories', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse([{ id: 1 }]))
+    const result = await clientWith(fetchMock).listRepositories(1, 20)
+    const [url, init] = fetchMock.mock.calls[0] ?? []
+    expect(String(url)).toContain('/git/api/v1/user/repos?page=1&limit=20&sort=updated')
+    expect(new Headers(init?.headers).get('Authorization')).toBe('token top-secret')
+    expect(result).toEqual([{ id: 1 }])
+  })
+
+  it('omits authorization when no token is configured', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse({ version: '1.0.0' }))
+    await clientWith(fetchMock, { token: undefined }).getVersion()
+    const [, init] = fetchMock.mock.calls[0] ?? []
+    expect(new Headers(init?.headers).has('Authorization')).toBe(false)
+  })
+
+  it('encodes owner and repository path segments', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse({ index: 7 }))
+    await clientWith(fetchMock).getIssue('my team', 'demo/repo', 7)
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/repos/my%20team/demo%2Frepo/issues/7')
+  })
+
+  it('forwards the caller cancellation signal', async () => {
+    const controller = new AbortController()
+    const fetchMock = vi.fn<FetchLike>().mockImplementation((_input, init) => {
+      expect(init?.signal).toBeInstanceOf(AbortSignal)
+      controller.abort()
+      return Promise.reject(init?.signal?.reason)
+    })
+    await expect(clientWith(fetchMock).getVersion(controller.signal)).rejects.toBeDefined()
+  })
+
+  it.each([401, 403, 404, 429, 500])('returns a safe HTTP error for %s', async (status) => {
+    const fetchMock = vi
+      .fn<FetchLike>()
+      .mockResolvedValue(jsonResponse({ message: 'request rejected' }, status))
+    const promise = clientWith(fetchMock).getVersion()
+    await expect(promise).rejects.toMatchObject({ status })
+    await expect(promise).rejects.not.toThrow('top-secret')
+  })
+
+  it('bounds response bodies using content-length', async () => {
+    const fetchMock = vi
+      .fn<FetchLike>()
+      .mockResolvedValue(jsonResponse({ ok: true }, 200, { 'Content-Length': '999' }))
+    await expect(clientWith(fetchMock, { maxResponseBytes: 10 }).getVersion()).rejects.toThrow(
+      'body exceeds 10 bytes',
+    )
+  })
+
+  it('bounds streamed response bodies without content-length', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(new Response('01234567890'))
+    await expect(clientWith(fetchMock, { maxResponseBytes: 10 }).getVersion()).rejects.toThrow(
+      'body exceeds 10 bytes',
+    )
+  })
+
+  it('handles empty and non-JSON error responses', async () => {
+    const emptyFetch = vi.fn<FetchLike>().mockResolvedValue(new Response('', { status: 500 }))
+    await expect(clientWith(emptyFetch).getVersion()).rejects.toThrow('empty response')
+
+    const textFetch = vi
+      .fn<FetchLike>()
+      .mockResolvedValue(new Response('service\n unavailable', { status: 503 }))
+    await expect(clientWith(textFetch).getVersion()).rejects.toThrow('service unavailable')
+  })
+
+  it('rejects invalid JSON from a successful instance response', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(new Response('<html>', { status: 200 }))
+    await expect(clientWith(fetchMock).getVersion()).rejects.toBeInstanceOf(ForgeApiError)
+  })
+
+  it('rejects unsupported protocols and empty repository segments', async () => {
+    expect(
+      () =>
+        new ForgeClient({
+          baseUrl: 'file:///tmp/forge',
+          requestTimeoutMs: 1,
+          maxResponseBytes: 1,
+        }),
+    ).toThrow(ForgeConfigError)
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse({}))
+    expect(() => clientWith(fetchMock).getIssue(' ', 'repo', 1)).toThrow(ForgeConfigError)
+  })
+
+  it('rejects invalid runtime limits', () => {
+    expect(() => clientWith(vi.fn<FetchLike>(), { requestTimeoutMs: 0 })).toThrow(
+      'requestTimeoutMs must be a positive integer',
+    )
+    expect(() => clientWith(vi.fn<FetchLike>(), { maxResponseBytes: Number.NaN })).toThrow(
+      'maxResponseBytes must be a positive integer',
+    )
+  })
+})
+
+describe('normalizePagination', () => {
+  it('uses defaults and clamps unsafe values', () => {
+    expect(normalizePagination()).toEqual({ page: 1, limit: 20 })
+    expect(normalizePagination(-2, 1_000)).toEqual({ page: 1, limit: 50 })
+    expect(normalizePagination(2.8, 4.9)).toEqual({ page: 2, limit: 4 })
+    expect(normalizePagination(Number.NaN, Number.POSITIVE_INFINITY)).toEqual({ page: 1, limit: 1 })
+  })
+})

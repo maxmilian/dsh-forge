@@ -1,0 +1,8 @@
+- insert:
+    - id: forge-tools
+      name: dsh-forge
+      config:
+        baseUrl: ''
+        token: ''
+        requestTimeoutMs: 30000
+        maxResponseBytes: 1000000
