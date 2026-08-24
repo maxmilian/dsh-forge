@@ -21,6 +21,7 @@ jobs:
             binary: gitea
             port: 3100
             runner_url: https://dl.gitea.com/gitea-runner/3.1.0/gitea-runner-3.1.0-linux-amd64
+            runner_sha256: 377842d074b331bee7a94a18dc5310636d44ec5cbadbcb1052809d34a6543ef3
             runner_binary: gitea-runner
             runner_config: false
             runner_token_method: POST
@@ -31,6 +32,7 @@ jobs:
             binary: forgejo
             port: 3200
             runner_url: https://code.forgejo.org/forgejo/runner/releases/download/v13.0.0/forgejo-runner-13.0.0-linux-amd64
+            runner_sha256: cfcfe65e9ed5c9a4b344acfdbc3c32210b274c005a5888f46967c4d988177707
             runner_binary: forgejo-runner
             runner_config: true
             runner_token_method: GET
@@ -73,12 +75,14 @@ jobs:
         env:
           PORT: ${{ matrix.port }}
           RUNNER_URL: ${{ matrix.runner_url }}
+          RUNNER_SHA256: ${{ matrix.runner_sha256 }}
           RUNNER_BINARY: ${{ matrix.runner_binary }}
           RUNNER_CONFIG: ${{ matrix.runner_config }}
           RUNNER_TOKEN_METHOD: ${{ matrix.runner_token_method }}
           RUNNER_LABELS: ${{ matrix.runner_labels }}
         run: |
           curl --fail --location --output "$RUNNER_BINARY" "$RUNNER_URL"
+          echo "$RUNNER_SHA256  $RUNNER_BINARY" | sha256sum --check --strict
           chmod +x "$RUNNER_BINARY"
           mkdir runner-data
           cd runner-data
