@@ -67,7 +67,7 @@ describe('createForgeTools', () => {
     {
       name: 'forge_list_repositories',
       args: { page: 2, limit: 10 },
-      expected: '/user/repos?page=2&limit=10&sort=updated',
+      expected: '/user/repos?page=2&limit=10',
     },
     {
       name: 'forge_search_issues',

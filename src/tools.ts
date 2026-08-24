@@ -40,7 +40,7 @@ function instanceInfoTool(client: ForgeClientProvider) {
 function listRepositoriesTool(client: ForgeClientProvider) {
   return defineTool({
     name: 'forge_list_repositories',
-    description: 'List repositories visible to the authenticated Gitea or Forgejo user.',
+    description: 'List repositories owned by the authenticated Gitea or Forgejo user.',
     parameters: paginationParameters(),
     output: JSON_OUTPUT,
     execute(args, exec) {

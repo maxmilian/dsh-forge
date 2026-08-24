@@ -1,5 +1,8 @@
 # dsh-forge
 
+[![CI](https://github.com/maxmilian/dsh-forge/actions/workflows/ci.yml/badge.svg)](https://github.com/maxmilian/dsh-forge/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Read-only [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) tools for
 self-hosted [Gitea](https://about.gitea.com/) and [Forgejo](https://forgejo.org/) instances.
 The plugin uses the REST API shared by both projects and adds repository, issue, pull request,
@@ -11,7 +14,7 @@ and Actions context directly to DSH.
 ## Features
 
 - Inspect the configured instance version.
-- List repositories visible to the authenticated user.
+- List repositories owned by the authenticated user.
 - Search issues and pull requests across visible repositories.
 - Read an issue or pull request by repository and index.
 - List repository pull requests and Actions runs.
@@ -75,7 +78,7 @@ reruns, or deletes remote resources.
 | Tool | Purpose |
 | --- | --- |
 | `forge_instance_info` | Read instance version information |
-| `forge_list_repositories` | List repositories visible to the authenticated user |
+| `forge_list_repositories` | List repositories owned by the authenticated user |
 | `forge_search_issues` | Search issues or pull requests across repositories |
 | `forge_get_issue` | Read one issue |
 | `forge_list_pull_requests` | List repository pull requests |
@@ -99,6 +102,17 @@ bun pm pack --dry-run
 ```
 
 Tests mock `fetch`; they do not require a live Gitea or Forgejo instance.
+
+## Compatibility verification
+
+| Target | Verification |
+| --- | --- |
+| DeepSeek Harness | Local bundle install, composed-config dump, and boot smoke test |
+| Gitea | Shared endpoints checked against the current official OpenAPI schema |
+| Forgejo | Shared endpoints checked against the Forgejo 16 OpenAPI schema served by Codeberg |
+
+Authenticated live-instance tests are not automated yet. API payloads are returned as canonical JSON
+so fields added by either project remain available without requiring a plugin release.
 
 ## Current scope
 

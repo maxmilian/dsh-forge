@@ -24,9 +24,9 @@ export class ForgeClient {
     return this.#get('version', {}, signal)
   }
 
-  /** List repositories visible to the authenticated user. */
+  /** List repositories owned by the authenticated user. */
   listRepositories(page: number, limit: number, signal?: AbortSignal): Promise<JsonValue> {
-    return this.#get('user/repos', { page, limit, sort: 'updated' }, signal)
+    return this.#get('user/repos', { page, limit }, signal)
   }
 
   /** Search issues across repositories visible to the caller. */
@@ -71,7 +71,7 @@ export class ForgeClient {
       headers: requestHeaders(this.#token),
       signal: requestSignal(signal, this.#requestTimeoutMs),
     })
-    return parseResponse(response, `GET ${path}`, this.#maxResponseBytes)
+    return parseResponse(response, `GET ${path}`, this.#maxResponseBytes, this.#token)
   }
 }
 
@@ -135,6 +135,9 @@ function normalizeBaseUrl(value: string): URL {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new ForgeConfigError('dsh-forge baseUrl must use http or https')
   }
+  if (url.username !== '' || url.password !== '') {
+    throw new ForgeConfigError('dsh-forge baseUrl must not contain credentials')
+  }
   url.pathname = `${url.pathname.replace(/\/+$/, '')}/`
   url.search = ''
   url.hash = ''
@@ -179,9 +182,10 @@ async function parseResponse(
   response: Response,
   operation: string,
   maxResponseBytes: number,
+  token: string | undefined,
 ): Promise<JsonValue> {
   const text = await readBoundedBody(response, maxResponseBytes)
-  if (!response.ok) throw new ForgeApiError(operation, response.status, errorDetail(text))
+  if (!response.ok) throw new ForgeApiError(operation, response.status, errorDetail(text, token))
   if (text === '') return null
   return parseJson(text, operation)
 }
@@ -191,11 +195,42 @@ async function readBoundedBody(response: Response, maximum: number): Promise<str
   if (Number.isFinite(declared) && declared > maximum) {
     throw new ForgeApiError('response', response.status, `body exceeds ${maximum} bytes`)
   }
-  const bytes = new Uint8Array(await response.arrayBuffer())
-  if (bytes.byteLength > maximum) {
-    throw new ForgeApiError('response', response.status, `body exceeds ${maximum} bytes`)
+  if (response.body === null) return ''
+  return new TextDecoder().decode(await readBoundedStream(response.body, maximum, response.status))
+}
+
+async function readBoundedStream(
+  stream: ReadableStream<Uint8Array>,
+  maximum: number,
+  status: number,
+): Promise<Uint8Array> {
+  const reader = stream.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) return joinChunks(chunks, total)
+      total += value.byteLength
+      if (total > maximum) {
+        await reader.cancel()
+        throw new ForgeApiError('response', status, `body exceeds ${maximum} bytes`)
+      }
+      chunks.push(value)
+    }
+  } finally {
+    reader.releaseLock()
   }
-  return new TextDecoder().decode(bytes)
+}
+
+function joinChunks(chunks: readonly Uint8Array[], total: number): Uint8Array {
+  const result = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    result.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return result
 }
 
 function parseJson(text: string, operation: string): JsonValue {
@@ -208,15 +243,22 @@ function parseJson(text: string, operation: string): JsonValue {
   }
 }
 
-function errorDetail(text: string): string {
+function errorDetail(text: string, token: string | undefined): string {
   if (text === '') return 'empty response'
   try {
     const value: unknown = JSON.parse(text)
-    if (isRecord(value) && typeof value.message === 'string') return value.message.slice(0, 500)
+    if (isRecord(value) && typeof value.message === 'string') {
+      return sanitizeDetail(value.message, token)
+    }
   } catch {
-    return text.replace(/\s+/g, ' ').trim().slice(0, 500)
+    return sanitizeDetail(text, token)
   }
   return 'request rejected'
+}
+
+function sanitizeDetail(value: string, token: string | undefined): string {
+  const redacted = token === undefined ? value : value.split(token).join('[REDACTED]')
+  return redacted.replace(/\s+/g, ' ').trim().slice(0, 500)
 }
 
 function isJsonValue(value: unknown): value is JsonValue {

@@ -41,7 +41,8 @@ describe('ForgeClient', () => {
     const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse([{ id: 1 }]))
     const result = await clientWith(fetchMock).listRepositories(1, 20)
     const [url, init] = fetchMock.mock.calls[0] ?? []
-    expect(String(url)).toContain('/git/api/v1/user/repos?page=1&limit=20&sort=updated')
+    expect(String(url)).toContain('/git/api/v1/user/repos?page=1&limit=20')
+    expect(String(url)).not.toContain('sort=')
     expect(new Headers(init?.headers).get('Authorization')).toBe('token top-secret')
     expect(result).toEqual([{ id: 1 }])
   })
@@ -78,6 +79,15 @@ describe('ForgeClient', () => {
     await expect(promise).rejects.not.toThrow('top-secret')
   })
 
+  it('redacts a token reflected by an error response', async () => {
+    const fetchMock = vi
+      .fn<FetchLike>()
+      .mockResolvedValue(jsonResponse({ message: 'rejected token top-secret' }, 401))
+    const promise = clientWith(fetchMock).getVersion()
+    await expect(promise).rejects.not.toThrow('top-secret')
+    await expect(promise).rejects.toThrow('rejected token [REDACTED]')
+  })
+
   it('bounds response bodies using content-length', async () => {
     const fetchMock = vi
       .fn<FetchLike>()
@@ -109,6 +119,11 @@ describe('ForgeClient', () => {
     await expect(clientWith(fetchMock).getVersion()).rejects.toBeInstanceOf(ForgeApiError)
   })
 
+  it('returns null for a successful response without a body', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(new Response(null, { status: 204 }))
+    await expect(clientWith(fetchMock).getVersion()).resolves.toBeNull()
+  })
+
   it('rejects unsupported protocols and empty repository segments', async () => {
     expect(
       () =>
@@ -118,6 +133,14 @@ describe('ForgeClient', () => {
           maxResponseBytes: 1,
         }),
     ).toThrow(ForgeConfigError)
+    expect(
+      () =>
+        new ForgeClient({
+          baseUrl: 'https://user:password@forge.example.test',
+          requestTimeoutMs: 1,
+          maxResponseBytes: 1,
+        }),
+    ).toThrow('baseUrl must not contain credentials')
     const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse({}))
     expect(() => clientWith(fetchMock).getIssue(' ', 'repo', 1)).toThrow(ForgeConfigError)
   })
