@@ -48,6 +48,27 @@ describe('ForgeClient', () => {
     expect(result).toEqual([{ id: 1 }])
   })
 
+  it('normalizes pagination at every client list boundary', async () => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse([]))
+    const client = clientWith(fetchMock)
+
+    await client.listRepositories(-1, 1_000)
+    await client.searchIssues({ page: -1, limit: 1_000 })
+    await client.listPullRequests({
+      owner: 'ankey',
+      repo: 'demo',
+      state: 'open',
+      page: -1,
+      limit: 1_000,
+    })
+    await client.listPullRequestFiles('ankey', 'demo', 1, -1, 1_000)
+    await client.listActionRuns({ owner: 'ankey', repo: 'demo', page: -1, limit: 1_000 })
+
+    for (const [url] of fetchMock.mock.calls) {
+      expect(String(url)).toContain('page=1&limit=50')
+    }
+  })
+
   it('omits authorization when no token is configured', async () => {
     const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse({ version: '1.0.0' }))
     await clientWith(fetchMock, { token: undefined }).getVersion()
@@ -136,12 +157,14 @@ describe('ForgeClient', () => {
   })
 
   it('bounds response bodies using content-length', async () => {
-    const fetchMock = vi
-      .fn<FetchLike>()
-      .mockResolvedValue(jsonResponse({ ok: true }, 200, { 'Content-Length': '999' }))
+    const cancel = vi.fn()
+    const body = new ReadableStream({ cancel })
+    const response = new Response(body, { headers: { 'Content-Length': '999' } })
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(response)
     await expect(clientWith(fetchMock, { maxResponseBytes: 10 }).getVersion()).rejects.toThrow(
       'body exceeds 10 bytes',
     )
+    expect(cancel).toHaveBeenCalledOnce()
   })
 
   it('bounds streamed response bodies without content-length', async () => {
@@ -199,6 +222,28 @@ describe('ForgeClient', () => {
     expect(() => clientWith(vi.fn<FetchLike>(), { maxResponseBytes: Number.NaN })).toThrow(
       'maxResponseBytes must be a positive integer',
     )
+  })
+
+  it.each([
+    ['issue index', (client: ForgeClient) => client.getIssue('ankey', 'demo', 0)],
+    ['pull request index', (client: ForgeClient) => client.getPullRequest('ankey', 'demo', -1)],
+    [
+      'pull request index',
+      (client: ForgeClient) => client.getPullRequestDiff('ankey', 'demo', 1.5),
+    ],
+    [
+      'pull request index',
+      (client: ForgeClient) => client.listPullRequestFiles('ankey', 'demo', Number.NaN, 1, 20),
+    ],
+    ['Actions run ID', (client: ForgeClient) => client.listActionJobs('ankey', 'demo', 0)],
+    [
+      'Actions job ID',
+      (client: ForgeClient) => client.getActionJobLogs('ankey', 'demo', Number.POSITIVE_INFINITY),
+    ],
+  ])('rejects an invalid %s', (name, invoke) => {
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(jsonResponse({}))
+    expect(() => invoke(clientWith(fetchMock))).toThrow(`${name} must be a positive integer`)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 

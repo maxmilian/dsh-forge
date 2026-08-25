@@ -26,23 +26,29 @@ export class ForgeClient {
 
   /** List repositories owned by the authenticated user. */
   listRepositories(page: number, limit: number, signal?: AbortSignal): Promise<JsonValue> {
-    return this.#get('user/repos', { page, limit }, signal)
+    return this.#get('user/repos', normalizePagination(page, limit), signal)
   }
 
   /** Search issues across repositories visible to the caller. */
   searchIssues(query: IssueSearchQuery, signal?: AbortSignal): Promise<JsonValue> {
-    return this.#get('repos/issues/search', query, signal)
+    return this.#get(
+      'repos/issues/search',
+      { ...query, ...normalizePagination(query.page, query.limit) },
+      signal,
+    )
   }
 
   /** Fetch one issue by repository owner, name, and numeric index. */
   getIssue(owner: string, repo: string, index: number, signal?: AbortSignal): Promise<JsonValue> {
-    return this.#get(`repos/${segment(owner)}/${segment(repo)}/issues/${index}`, {}, signal)
+    const issueIndex = positiveInteger(index, 'issue index')
+    return this.#get(`repos/${segment(owner)}/${segment(repo)}/issues/${issueIndex}`, {}, signal)
   }
 
   /** List pull requests for a repository. */
   listPullRequests(query: PullListQuery, signal?: AbortSignal): Promise<JsonValue> {
     const path = `repos/${segment(query.owner)}/${segment(query.repo)}/pulls`
-    return this.#get(path, omit(query, ['owner', 'repo']), signal)
+    const pagination = normalizePagination(query.page, query.limit)
+    return this.#get(path, { ...omit(query, ['owner', 'repo']), ...pagination }, signal)
   }
 
   /** Fetch one pull request by repository owner, name, and numeric index. */
@@ -52,7 +58,12 @@ export class ForgeClient {
     index: number,
     signal?: AbortSignal,
   ): Promise<JsonValue> {
-    return this.#get(`repos/${segment(owner)}/${segment(repo)}/pulls/${index}`, {}, signal)
+    const pullRequestIndex = positiveInteger(index, 'pull request index')
+    return this.#get(
+      `repos/${segment(owner)}/${segment(repo)}/pulls/${pullRequestIndex}`,
+      {},
+      signal,
+    )
   }
 
   /** Fetch one pull request as a unified diff. */
@@ -62,7 +73,12 @@ export class ForgeClient {
     index: number,
     signal?: AbortSignal,
   ): Promise<string> {
-    return this.#getText(`repos/${segment(owner)}/${segment(repo)}/pulls/${index}.diff`, {}, signal)
+    const pullRequestIndex = positiveInteger(index, 'pull request index')
+    return this.#getText(
+      `repos/${segment(owner)}/${segment(repo)}/pulls/${pullRequestIndex}.diff`,
+      {},
+      signal,
+    )
   }
 
   /** List files changed by one pull request. */
@@ -74,9 +90,10 @@ export class ForgeClient {
     limit: number,
     signal?: AbortSignal,
   ): Promise<JsonValue> {
+    const pullRequestIndex = positiveInteger(index, 'pull request index')
     return this.#get(
-      `repos/${segment(owner)}/${segment(repo)}/pulls/${index}/files`,
-      { page, limit },
+      `repos/${segment(owner)}/${segment(repo)}/pulls/${pullRequestIndex}/files`,
+      normalizePagination(page, limit),
       signal,
     )
   }
@@ -84,7 +101,8 @@ export class ForgeClient {
   /** List Actions runs for a repository. */
   listActionRuns(query: ActionRunsQuery, signal?: AbortSignal): Promise<JsonValue> {
     const path = `repos/${segment(query.owner)}/${segment(query.repo)}/actions/runs`
-    return this.#get(path, omit(query, ['owner', 'repo']), signal)
+    const pagination = normalizePagination(query.page, query.limit)
+    return this.#get(path, { ...omit(query, ['owner', 'repo']), ...pagination }, signal)
   }
 
   /** List jobs belonging to one Actions workflow run. */
@@ -94,8 +112,9 @@ export class ForgeClient {
     runId: number,
     signal?: AbortSignal,
   ): Promise<JsonValue> {
+    const actionRunId = positiveInteger(runId, 'Actions run ID')
     return this.#get(
-      `repos/${segment(owner)}/${segment(repo)}/actions/runs/${runId}/jobs`,
+      `repos/${segment(owner)}/${segment(repo)}/actions/runs/${actionRunId}/jobs`,
       {},
       signal,
     )
@@ -108,8 +127,9 @@ export class ForgeClient {
     jobId: number,
     signal?: AbortSignal,
   ): Promise<string> {
+    const actionJobId = positiveInteger(jobId, 'Actions job ID')
     return this.#getText(
-      `repos/${segment(owner)}/${segment(repo)}/actions/jobs/${jobId}/logs`,
+      `repos/${segment(owner)}/${segment(repo)}/actions/jobs/${actionJobId}/logs`,
       {},
       signal,
     )
@@ -187,7 +207,7 @@ export function buildUrl(
   return url
 }
 
-/** Clamp model-provided pagination to safe API bounds. */
+/** Clamp pagination to safe API bounds. */
 export function normalizePagination(
   page?: number,
   limit?: number,
@@ -275,6 +295,7 @@ async function parseTextResponse(
 async function readBoundedBody(response: Response, maximum: number): Promise<string> {
   const declared = Number(response.headers.get('content-length'))
   if (Number.isFinite(declared) && declared > maximum) {
+    if (response.body !== null) await response.body.cancel().catch(() => undefined)
     throw new ForgeApiError('response', response.status, `body exceeds ${maximum} bytes`)
   }
   if (response.body === null) return ''
