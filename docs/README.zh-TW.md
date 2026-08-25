@@ -26,7 +26,7 @@
 建議從 npm 安裝：
 
 ```bash
-dsh plugin --profile web add @maxmilian/dsh-forge
+dsh plugin --profile web add @maxhsu/dsh-forge
 ```
 
 或使用含編譯結果的 release tarball：

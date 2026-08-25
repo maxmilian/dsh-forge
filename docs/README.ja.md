@@ -27,7 +27,7 @@ Actions の情報を提供します。
 npm からのインストールを推奨します。
 
 ```bash
-dsh plugin --profile web add @maxmilian/dsh-forge
+dsh plugin --profile web add @maxhsu/dsh-forge
 ```
 
 またはコンパイル済みの release tarball を使用します。
