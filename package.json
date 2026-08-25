@@ -1,6 +1,6 @@
 {
-  "name": "@maxmilian/dsh-forge",
-  "version": "0.3.2",
+  "name": "@maxhsu/dsh-forge",
+  "version": "0.3.3",
   "description": "DeepSeek Harness tools for self-hosted Gitea and Forgejo instances.",
   "type": "module",
   "publishConfig": {

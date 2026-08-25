@@ -41,7 +41,7 @@ dsh --profile web
 From npm (recommended):
 
 ```bash
-dsh plugin --profile web add @maxmilian/dsh-forge
+dsh plugin --profile web add @maxhsu/dsh-forge
 ```
 
 From the prebuilt release tarball:
