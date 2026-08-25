@@ -38,6 +38,7 @@ jobs:
           tar --list --gzip --file "$PACKAGE_TARBALL"
           cp "$PACKAGE_TARBALL" dsh-forge.tgz
           sha256sum "$PACKAGE_TARBALL" dsh-forge.tgz >SHA256SUMS
+          echo "PACKAGE_TARBALL=$PACKAGE_TARBALL" >>"$GITHUB_ENV"
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
