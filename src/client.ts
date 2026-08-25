@@ -259,7 +259,7 @@ function segment(value: string): string {
 }
 
 function requestHeaders(token: string | undefined): Headers {
-  const headers = new Headers({ Accept: '*/*', 'User-Agent': 'dsh-forge/0.3.1' })
+  const headers = new Headers({ Accept: '*/*', 'User-Agent': 'dsh-forge/0.3.2' })
   if (token !== undefined) headers.set('Authorization', `token ${token}`)
   return headers
 }

@@ -1,6 +1,6 @@
 - insert:
     - id: forge-tools
-      name: dsh-forge
+      name: '@maxmilian/dsh-forge'
       config:
         baseUrl: ''
         token: ''
