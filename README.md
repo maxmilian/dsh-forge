@@ -38,7 +38,13 @@ dsh --profile web --dump-config
 dsh --profile web
 ```
 
-From the prebuilt release tarball (recommended):
+From npm (recommended):
+
+```bash
+dsh plugin --profile web add @maxmilian/dsh-forge
+```
+
+From the prebuilt release tarball:
 
 ```bash
 dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/latest/download/dsh-forge.tgz

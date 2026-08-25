@@ -23,7 +23,13 @@
 
 ## 安裝
 
-建議使用含編譯結果的 release tarball：
+建議從 npm 安裝：
+
+```bash
+dsh plugin --profile web add @maxmilian/dsh-forge
+```
+
+或使用含編譯結果的 release tarball：
 
 ```bash
 dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/latest/download/dsh-forge.tgz

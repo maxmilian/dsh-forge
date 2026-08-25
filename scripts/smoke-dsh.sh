@@ -6,7 +6,8 @@ smoke_root="$(mktemp -d)"
 trap 'rm -rf "$smoke_root"' EXIT
 
 package_version="$(node --print "require('./package.json').version")"
-tarball="$smoke_root/dsh-forge-${package_version}.tgz"
+package_slug="$(node --print "require('./package.json').name.replace('@', '').replace('/', '-')")"
+tarball="$smoke_root/${package_slug}-${package_version}.tgz"
 bun pm pack --destination "$smoke_root" --quiet
 test -f "$tarball"
 

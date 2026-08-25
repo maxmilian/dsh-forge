@@ -1,8 +1,11 @@
 {
-  "name": "dsh-forge",
-  "version": "0.3.1",
+  "name": "@maxmilian/dsh-forge",
+  "version": "0.3.2",
   "description": "DeepSeek Harness tools for self-hosted Gitea and Forgejo instances.",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "exports": {

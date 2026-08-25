@@ -33,7 +33,8 @@ jobs:
           PACKAGE_VERSION="$(node --print "require('./package.json').version")"
           test "$GITHUB_REF_NAME" = "v${PACKAGE_VERSION}"
           bun pm pack
-          PACKAGE_TARBALL="dsh-forge-${PACKAGE_VERSION}.tgz"
+          PACKAGE_SLUG="$(node --print "require('./package.json').name.replace('@', '').replace('/', '-')")"
+          PACKAGE_TARBALL="${PACKAGE_SLUG}-${PACKAGE_VERSION}.tgz"
           tar --list --gzip --file "$PACKAGE_TARBALL"
           cp "$PACKAGE_TARBALL" dsh-forge.tgz
           sha256sum "$PACKAGE_TARBALL" dsh-forge.tgz >SHA256SUMS
@@ -41,5 +42,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh release create "$GITHUB_REF_NAME" dsh-forge-*.tgz dsh-forge.tgz SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" "$PACKAGE_TARBALL" dsh-forge.tgz SHA256SUMS
           --verify-tag --generate-notes

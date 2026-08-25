@@ -24,7 +24,13 @@ Actions の情報を提供します。
 
 ## インストール
 
-コンパイル済みの release tarball を推奨します。
+npm からのインストールを推奨します。
+
+```bash
+dsh plugin --profile web add @maxmilian/dsh-forge
+```
+
+またはコンパイル済みの release tarball を使用します。
 
 ```bash
 dsh plugin --profile web add https://github.com/maxmilian/dsh-forge/releases/latest/download/dsh-forge.tgz
