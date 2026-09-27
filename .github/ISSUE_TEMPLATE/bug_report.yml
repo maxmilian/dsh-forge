@@ -11,7 +11,7 @@ body:
     id: plugin-version
     attributes:
       label: dsh-forge version
-      placeholder: 0.3.3
+      placeholder: 0.3.4
     validations:
       required: true
   - type: input
